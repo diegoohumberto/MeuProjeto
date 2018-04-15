@@ -1,28 +1,38 @@
 <?php
 
-class Select {
+/**
+ * <b>Read.class:</b>
+ * Classe responsável por leituras genéricas no banco de dados!
+ */
+class Read {
 
     private $Select;
     private $Places;
     private $Result;
-    private $Ler;
-    private $Conn;
 
+    /** @var PDOStatement */
+    private $Read;
+
+    /** @var PDO */
+    private $Conn;
+    
+    /* Obtém conexão do banco de dados Singleton */
     public function __construct() {
         $this->Conn = Conn::getConn();
     }
 
     /**
-     * <b>ExeLer:</b> Executa uma leitura simplificada com Prepared Statments. Basta informar o nome da tabela,
+     * <b>Exe Read:</b> Executa uma leitura simplificada com Prepared Statments. Basta informar o nome da tabela,
      * os termos da seleção e uma analize em cadeia (ParseString) para executar.
      * @param STRING $Tabela = Nome da tabela
      * @param STRING $Termos = WHERE | ORDER | LIMIT :limit | OFFSET :offset
      * @param STRING $ParseString = link={$link}&link2={$link2}
      */
-    public function ExeLer($Tabela, $Termos = null, $ParseString = null) {
-        if (!empty($ParseString)) {
+    public function ExeRead($Tabela, $Termos = null, $ParseString = null) {
+        if (!empty($ParseString)):
             parse_str($ParseString, $this->Places);
-        }
+        endif;
+
         $this->Select = "SELECT * FROM {$Tabela} {$Termos}";
         $this->Execute();
     }
@@ -35,8 +45,8 @@ class Select {
     public function getResult() {
         return $this->Result;
     }
-    
-     /**
+
+    /**
      * <b>Obter relacionados:</b> Obtém resultados relacionados de outra tabela por meio de coluna e valor associado!
      * @param STRING $Tabela Nome da tabela onde buscar os dados!
      * @param STRING $Coluna Nome da coluna relacionada a sua leitura atual!
@@ -46,9 +56,9 @@ class Select {
      */
     public function LinkResult($Tabela, $Coluna, $Valor, $Campos = null) {
         if ($Campos):
-            $this->Full_Ler("SELECT {$Campos} FROM  {$Tabela} WHERE {$Coluna} = :value", "value={$Valor}");
+            $this->FullRead("SELECT {$Campos} FROM  {$Tabela} WHERE {$Coluna} = :value", "value={$Valor}");
         else:
-            $this->ExeLer($Tabela, "WHERE {$Coluna} = :value", "value={$Valor}");
+            $this->ExeRead($Tabela, "WHERE {$Coluna} = :value", "value={$Valor}");
         endif;
 
         if ($this->getResult()):
@@ -63,10 +73,10 @@ class Select {
      * @return INT $Var = Quantidade de registros encontrados
      */
     public function getRowCount() {
-        return $this->Ler->rowCount();
+        return $this->Read->rowCount();
     }
 
-    public function Full_Ler($Query, $ParseString = null) {
+    public function FullRead($Query, $ParseString = null) {
         $this->Select = (string) $Query;
         if (!empty($ParseString)):
             parse_str($ParseString, $this->Places);
@@ -90,32 +100,32 @@ class Select {
      * *********** PRIVATE METHODS ************
      * ****************************************
      */
-//Obtém o PDO e Prepara a query
+    //Obtém o PDO e Prepara a query
     private function Connect() {
-
-        $this->Ler = $this->Conn->prepare($this->Select);
-        $this->Ler->setFetchMode(PDO::FETCH_ASSOC);
+        
+        $this->Read = $this->Conn->prepare($this->Select);
+        $this->Read->setFetchMode(PDO::FETCH_ASSOC);
     }
 
-//Cria a sintaxe da query para Prepared Statements
+    //Cria a sintaxe da query para Prepared Statements
     private function getSyntax() {
         if ($this->Places):
             foreach ($this->Places as $Vinculo => $Valor):
                 if ($Vinculo == 'limit' || $Vinculo == 'offset'):
                     $Valor = (int) $Valor;
                 endif;
-                $this->Ler->bindValue(":{$Vinculo}", $Valor, ( is_int($Valor) ? PDO::PARAM_INT : PDO::PARAM_STR));
+                $this->Read->bindValue(":{$Vinculo}", $Valor, ( is_int($Valor) ? PDO::PARAM_INT : PDO::PARAM_STR));
             endforeach;
         endif;
     }
 
-//Obtém a Conexão e a Syntax, executa a query!
+    //Obtém a Conexão e a Syntax, executa a query!
     private function Execute() {
         $this->Connect();
         try {
             $this->getSyntax();
-            $this->Ler->execute();
-            $this->Result = $this->Ler->fetchAll();
+            $this->Read->execute();
+            $this->Result = $this->Read->fetchAll();
         } catch (PDOException $e) {
             $this->Result = null;
             Erro("<b>Erro ao Ler:</b> {$e->getMessage()}", $e->getCode());
